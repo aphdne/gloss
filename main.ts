@@ -1,6 +1,6 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { Plugin } from 'obsidian';
 
-export default class MyPlugin extends Plugin {
+export default class Gloss extends Plugin {
 	async onload() {
 	}
 
