@@ -1,6 +1,6 @@
 {
-	"id": "glossary.obsdmd",
-	"name": "Glossary",
+	"id": "gloss",
+	"name": "Gloss",
 	"version": "0.0.1",
 	"minAppVersion": "1.8.10",
 	"description": "Easy glossary management/linking.",
