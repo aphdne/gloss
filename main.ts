@@ -58,16 +58,17 @@ export default class Gloss extends Plugin {
 
     let text = renderer.text;
     for (const def of this.definitions) {
-      // https://forum.obsidian.md/t/is-there-a-pre-render-pre-processor-callback/72530/5
-      text = this.replaceTerm(text, def, def.term + "s");
-      text = this.replaceTerm(text, def, def.term.toLowerCase() + "s");
-      text = this.replaceTerm(text, def, def.term.toLowerCase());
-      text = this.replaceTerm(text, def, def.term);
+      const to_be_replaced = [...text.matchAll(new RegExp(`${def.term}(?!\\]|\\||s)`, "gmi"))];
+      for (const replacee of to_be_replaced) {
+        console.log(replacee[0]);
+        text = this.replaceTerm(text, def, replacee[0]);
+      }
     }
+    // https://forum.obsidian.md/t/is-there-a-pre-render-pre-processor-callback/72530/5
     renderer.set(text);
   }
 
   replaceTerm(input: string, def: Definition, keyword: string) {
-    return input.replaceAll(new RegExp(`${keyword}(?!\\]|\\||s)`, "g"), "[[" + def.glossary + ".md#" + def.term + "|" + keyword + "]]");
+    return input.replaceAll(new RegExp(`${keyword}(?!\\]|\\||s)`, "gm"), "[[" + def.glossary + ".md#" + def.term + "|" + keyword + "]]");
   }
 }
