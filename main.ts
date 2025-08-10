@@ -10,14 +10,18 @@ export default class Gloss extends Plugin {
       const mdfiles = this.app.vault.getMarkdownFiles();
       const glossary = mdfiles.find((el) => el.basename == "Glossary");
 
-      this.app.vault.read(glossary).then((result: string) => {
-        const arr = [...result.matchAll(/# [A-Za-z]+/g)];
+      if (glossary) {
+        this.app.vault.read(glossary).then((result: string) => {
+          const arr = [...result.matchAll(/# [A-Za-z]+/g)];
 
-        for (let i = 0; i < arr.length; i++) {
-          this.terms.push(arr[i][0].slice(2).toLowerCase()); // slice to remove '# ' prefix
-        }
-      })
-    })
+          for (let i = 0; i < arr.length; i++) {
+            this.terms.push(arr[i][0].slice(2).toLowerCase()); // slice to remove '# ' prefix
+          }
+        })
+      } else {
+        new Notice('No glossary.md!');
+      }
+    });
 
     this.addCommand({
       id: "gloss-insert-terms",
