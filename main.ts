@@ -2,8 +2,6 @@ import { MarkdownView, Plugin } from 'obsidian';
 
 /*
  * TODO: automatic glossary term insertion (without a command)
- * TODO: support multiple glossary files
- * - needs to maintain case in original word
 */
 
 interface Definition {
@@ -32,13 +30,12 @@ export default class Gloss extends Plugin {
 
           for (let i = 0; i < arr.length; i++) {
             this.definitions.push({
-              term: arr[i][0].toLowerCase(),
+              term: arr[i][0],
               glossary: g.basename
             });
           }
         })
       }
-      console.log(this.definitions);
     });
 
     this.addCommand({
@@ -61,14 +58,16 @@ export default class Gloss extends Plugin {
 
     let text = renderer.text;
     for (const def of this.definitions) {
-      const term = def.term;
-      const gloss = def.glossary;
       // https://forum.obsidian.md/t/is-there-a-pre-render-pre-processor-callback/72530/5
-      // replace plural
-      text = text.replaceAll(new RegExp(`${term + "s"}(?!\\]|\\||s)`, "g"), "[[" + gloss + ".md#" + term + "|" + term + "s]]");
-      // replace singular
-      text = text.replaceAll(new RegExp(`${term}(?!\\]|\\||s)`, "g"), "[[" + gloss + ".md#" + term + "|" + term + "]]");
+      text = this.replaceTerm(text, def, def.term + "s");
+      text = this.replaceTerm(text, def, def.term.toLowerCase() + "s");
+      text = this.replaceTerm(text, def, def.term.toLowerCase());
+      text = this.replaceTerm(text, def, def.term);
     }
     renderer.set(text);
+  }
+
+  replaceTerm(input: string, def: Definition, keyword: string) {
+    return input.replaceAll(new RegExp(`${keyword}(?!\\]|\\||s)`, "g"), "[[" + def.glossary + ".md#" + def.term + "|" + keyword + "]]");
   }
 }
