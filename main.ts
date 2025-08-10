@@ -22,10 +22,10 @@ export default class Gloss extends Plugin {
 
       for (const g of glossaries) {
         this.app.vault.cachedRead(g).then((result: string) => {
-          const arr = [...result.matchAll(/# [A-Za-z]+/g)];
+          const arr = [...result.matchAll(/(?<=\# )[A-Za-z]+/g)];
 
           for (let i = 0; i < arr.length; i++) {
-            this.terms.push(arr[i][0].slice(2).toLowerCase()); // slice to remove '# ' prefix
+            this.terms.push(arr[i][0].toLowerCase()); // slice to remove '# ' prefix
           }
         })
       }
