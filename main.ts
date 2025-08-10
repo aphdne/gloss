@@ -35,11 +35,11 @@ export default class Gloss extends Plugin {
 	}
 
   insertTerms() {
-    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-    const renderer = view.previewMode.renderer;
+    const renderer = this.app.workspace.getActiveViewOfType(MarkdownView).previewMode.renderer;
 
     for (const term of this.terms) {
-      renderer.set(renderer.text.replaceAll(term, "[[glossary.md#" + term + "|" + term + "]]"))
+      // https://forum.obsidian.md/t/is-there-a-pre-render-pre-processor-callback/72530/5
+      renderer.set(renderer.text.replaceAll(new RegExp(`${term}(?!\\]|\\|)`, "g"), "[[glossary.md#" + term + "|" + term + "]]"))
     }
   }
 }
