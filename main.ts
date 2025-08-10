@@ -38,8 +38,7 @@ export default class Gloss extends Plugin {
     const view = this.app.workspace.getActiveViewOfType(MarkdownView);
     const renderer = view.previewMode.renderer;
 
-    const terms = ["apple", "banana", "chicken"];
-    for (const term of terms) {
+    for (const term of this.terms) {
       renderer.set(renderer.text.replaceAll(term, "[[glossary.md#" + term + "|" + term + "]]"))
     }
   }
