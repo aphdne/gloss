@@ -71,7 +71,7 @@ export default class Gloss extends Plugin {
       const to_be_replaced = [...text.matchAll(new RegExp(`${def.term}e?s?`, "gmi"))].reverse();
       for (const replacee of to_be_replaced) {
         // regex: check if the term is within a markdown link or not, as to not replace terms within links recursively
-        text = text.replaceAll(new RegExp(`${replacee[0]}(?!\\]|\\||s)`, "gm"), "[[" + def.glossary + ".md#" + def.term + "|" + replacee[0] + "]]");
+        text = text.replaceAll(new RegExp(`(?<!\\# )${replacee[0]}(?!\\]|\\||s)`, "gm"), "[[" + def.glossary + ".md#" + def.term + "|" + replacee[0] + "]]");
       }
     }
     // https://forum.obsidian.md/t/is-there-a-pre-render-pre-processor-callback/72530/5
