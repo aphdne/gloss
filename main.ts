@@ -5,7 +5,6 @@ import { MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
  * BUG: frontmatter text will be modified
  * BUG: codeblock text is modified
  * BUG: error on unload (?)
- * BUG: links are inserted mid-word
  */
 
 interface Settings {
@@ -198,7 +197,7 @@ export default class Gloss extends Plugin {
     }
 
     this.definitions.sort((a, b) => {
-      a.charCodeAt(0) > b.charCodeAt(0);
+      a.charCodeAt(0) < b.charCodeAt(0);
     });
 
     console.log(this.definitions);
@@ -215,7 +214,7 @@ export default class Gloss extends Plugin {
   }
 
   insertTerms(text: string) {
-    for (const def of this.definitions) {
+    for (const def of this.definitions.reverse()) {
       // regex: case-insensitive keyword search, with or without an 's' or 'es' at the end (for plurals)
       const to_be_replaced = [...text.matchAll(new RegExp(`${def.term}e?s?`, "gmi"))].reverse(); // reverse array in order to do plural before singular
       for (const replacee of to_be_replaced) {
