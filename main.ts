@@ -6,7 +6,6 @@ import { MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
  * BUG: codeblock text is modified
  * BUG: error on unload (?)
  * BUG: links are inserted mid-word
- * BUG: definitions cannot include spaces
  */
 
 interface Settings {
@@ -187,7 +186,7 @@ export default class Gloss extends Plugin {
 
     for (const g of glossaries) {
       this.app.vault.cachedRead(g).then((result: string) => {
-        const arr = [...result.matchAll(/(?<=\# )[A-Za-z]+/g)];
+        const arr = [...result.matchAll(/(?<=\# )[A-Za-z].*/g)];
 
         for (let i = 0; i < arr.length; i++) {
           this.definitions.push({
@@ -201,6 +200,8 @@ export default class Gloss extends Plugin {
     this.definitions.sort((a, b) => {
       a.charCodeAt(0) > b.charCodeAt(0);
     });
+
+    console.log(this.definitions);
   }
 
   insertNoteLinks(text: string) {
