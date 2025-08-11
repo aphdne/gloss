@@ -3,6 +3,7 @@ import { MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
 /*
  * TODO: concatenate glossaries feature
  * BUG: frontmatter text will be modified
+ * BUG: codeblock text is modified
  */
 
 interface Settings {
@@ -67,28 +68,8 @@ export default class Gloss extends Plugin {
     await this.loadSettings();
 
     // use onLayoutReady(): https://publish.obsidian.md/liam/Obsidian/API+FAQ/filesystem/getMarkdownFiles+returns+an+empty+array+in+onLoad
-    // grab all glossary definitions
     this.registerEvent(this.app.workspace.onLayoutReady(() => {
-      const glossaries = this.app.vault.getMarkdownFiles().filter((tfile) => {
-        const fm = this.app.metadataCache.getFileCache(tfile).frontmatter
-        if (fm) {
-          return fm.tags.contains("glossary");
-        }
-        return false;
-      });
-
-      for (const g of glossaries) {
-        this.app.vault.cachedRead(g).then((result: string) => {
-          const arr = [...result.matchAll(/(?<=\# )[A-Za-z]+/g)];
-
-          for (let i = 0; i < arr.length; i++) {
-            this.definitions.push({
-              term: arr[i][0],
-              glossary: g.basename
-            });
-          }
-        })
-      }
+      this.populateDefinitions();
     }));
 
     this.registerEvent(this.app.vault.on('modify', () => {
@@ -106,6 +87,19 @@ export default class Gloss extends Plugin {
         }
       }
     }));
+
+    this.registerMarkdownCodeBlockProcessor("gloss", (src, el, ctx) => {
+      console.log(src);
+    });
+
+    this.addCommand({
+      id: "update-glossary-terms",
+      name: "Update glossary terms",
+      callback: () => {
+        this.definitions = [];
+        this.populateDefinitions();
+      },
+    });
 
     this.addCommand({
       id: "destructively-insert-glossary-terms",
@@ -136,6 +130,33 @@ export default class Gloss extends Plugin {
 
   async saveSettings() {
     await this.saveData(this.settings);
+  }
+
+  populateDefinitions() {
+    const glossaries = this.app.vault.getMarkdownFiles().filter((tfile) => {
+      const fm = this.app.metadataCache.getFileCache(tfile).frontmatter
+      if (fm) {
+        return fm.tags.contains("glossary");
+      }
+      return false;
+    });
+
+    for (const g of glossaries) {
+      this.app.vault.cachedRead(g).then((result: string) => {
+        const arr = [...result.matchAll(/(?<=\# )[A-Za-z]+/g)];
+
+        for (let i = 0; i < arr.length; i++) {
+          this.definitions.push({
+            term: arr[i][0],
+            glossary: g.basename
+          });
+        }
+      })
+    }
+
+    this.definitions.sort((a, b) => {
+      a.charCodeAt(0) > b.charCodeAt(0);
+    });
   }
 
   insertNoteLinks(text: string) {
