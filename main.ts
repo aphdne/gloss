@@ -2,8 +2,6 @@ import { MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
 
 /*
  * TODO: concatenate glossaries feature
- * BUG: frontmatter text will be modified
- * BUG: codeblock text is modified
  * BUG: error on unload (?)
  */
 
@@ -205,7 +203,8 @@ export default class Gloss extends Plugin {
 
   insertNoteLinks(text: string) {
     for (const mdf of this.app.vault.getMarkdownFiles().reverse()) {
-      const to_be_replaced = [...text.matchAll(new RegExp(`${mdf.basename}e?s?`, "gmi"))].reverse(); // reverse array in order to do plural before singular
+      console.log(mdf.basename);
+      const to_be_replaced = [...text.matchAll(new RegExp(`${mdf.basename.replace("+", "\\+")}e?s?`, "gmi"))].reverse(); // reverse array in order to do plural before singular
       for (const replacee of to_be_replaced) {
         text = this.insertLink(text, replacee[0], mdf.name);
       }
@@ -226,6 +225,6 @@ export default class Gloss extends Plugin {
 
   insertLink(text: string, replacee: string, link: string) {
     // https://regex101.com/r/Lz2f5T/1
-    return text.replaceAll(new RegExp(`(?<!\\# |\\[\\[|\\||\\#)${replacee}(?!\\]|\\||s)`, "gm"), "[[" + link + "|" + replacee + "]]");
+    return text.replaceAll(new RegExp(`(?<!\\# |\\[\\[|\\||\\#)${replacee.replace("+", "\\+")}(?!\\]|\\||s)`, "gm"), "[[" + link + "|" + replacee + "]]");
   }
 }
