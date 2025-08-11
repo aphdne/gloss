@@ -4,6 +4,9 @@ import { MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
  * TODO: concatenate glossaries feature
  * BUG: frontmatter text will be modified
  * BUG: codeblock text is modified
+ * BUG: error on unload (?)
+ * BUG: links are inserted mid-word
+ * BUG: definitions cannot include spaces
  */
 
 interface Settings {
@@ -68,9 +71,7 @@ export default class Gloss extends Plugin {
     await this.loadSettings();
 
     // use onLayoutReady(): https://publish.obsidian.md/liam/Obsidian/API+FAQ/filesystem/getMarkdownFiles+returns+an+empty+array+in+onLoad
-    this.registerEvent(this.app.workspace.onLayoutReady(() => {
-      this.populateDefinitions();
-    }));
+    this.registerEvent(this.app.workspace.onLayoutReady(() => this.populateDefinitions()));
 
     this.registerEvent(this.app.vault.on('modify', () => {
       const view = this.app.workspace.getActiveViewOfType(MarkdownView);
@@ -161,6 +162,10 @@ export default class Gloss extends Plugin {
     this.addSettingTab(new SettingsTab(this.app, this));
 	}
 
+  onunload() {
+
+  }
+
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
   }
@@ -173,7 +178,9 @@ export default class Gloss extends Plugin {
     const glossaries = this.app.vault.getMarkdownFiles().filter((tfile) => {
       const fm = this.app.metadataCache.getFileCache(tfile).frontmatter
       if (fm) {
-        return fm.tags.contains("glossary");
+        if (fm.tags) {
+          return fm.tags.contains("glossary");
+        }
       }
       return false;
     });
