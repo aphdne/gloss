@@ -2,6 +2,7 @@ import { MarkdownView, Plugin } from 'obsidian';
 
 /*
  * TODO: automatic glossary term insertion (without a command)
+ * BUG: rendered text affecting underlying markdown file
 */
 
 interface Definition {
@@ -14,7 +15,7 @@ export default class Gloss extends Plugin {
 
 	async onload() {
     // use onLayoutReady(): https://publish.obsidian.md/liam/Obsidian/API+FAQ/filesystem/getMarkdownFiles+returns+an+empty+array+in+onLoad
-    // grab all glossary terms
+    // grab all glossary definitions
     this.app.workspace.onLayoutReady(() => {
       const glossaries = this.app.vault.getMarkdownFiles().filter((tfile) => {
         const fm = this.app.metadataCache.getFileCache(tfile).frontmatter
@@ -37,6 +38,14 @@ export default class Gloss extends Plugin {
         })
       }
     });
+
+    this.registerEvent(this.app.workspace.on('layout-change', () => {
+      const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
+      if (markdownView && markdownView.getMode() == 'preview') {
+        this.insertTerms();
+      }
+    }));
+
 
     this.addCommand({
       id: "gloss-insert-terms",
