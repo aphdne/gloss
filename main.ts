@@ -72,24 +72,30 @@ export default class Gloss extends Plugin {
       this.populateDefinitions();
     }));
 
-    // this.registerEvent(this.app.vault.on('modify', () => {
-    //   const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-    //
-    //   if (view) {
-    //     const line = view.editor.getCursor().line;
-    //
-    //     if (this.settings.autoInsert) {
-    //       view.editor.setLine(line, this.insertTerms(view.editor.getLine(line)));
-    //     }
-    //
-    //     if (this.settings.autoLink) {
-    //       view.editor.setLine(line, this.insertNoteLinks(view.editor.getLine(line)));
+    this.registerEvent(this.app.vault.on('modify', () => {
+      const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+
+      if (view) {
+        const line = view.editor.getCursor().line;
+
+        if (this.settings.autoInsert) {
+          view.editor.setLine(line, this.insertTerms(view.editor.getLine(line)));
+        }
+
+        if (this.settings.autoLink) {
+          view.editor.setLine(line, this.insertNoteLinks(view.editor.getLine(line)));
+        }
+      }
+    }));
+
+    // this.registerMarkdownCodeBlockProcessor("gloss", (src, el, ctx) => {
+    //   if (src == "") {
+    //     for (const def of this.definitions) {
+    //       const h = el.createEl("h1", { text: def.term });
+    //       const p = el.createEl("p",  { text: "[[test.md]]" });
     //     }
     //   }
-    // }));
-
-    this.registerMarkdownCodeBlockProcessor("gloss", (src, el, ctx) => {
-    });
+    // });
 
     this.addCommand({
       id: "update-glossary-terms",
