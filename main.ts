@@ -2,7 +2,7 @@ import { MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
 
 /*
  * TODO: concatenate glossaries feature
- * TODO: dont replace tags with links i.e. #apple -> #[[glossary.md#apple]]
+ * BUG: frontmatter text will be modified
  */
 
 interface Settings {
@@ -94,9 +94,16 @@ export default class Gloss extends Plugin {
     this.registerEvent(this.app.vault.on('modify', () => {
       const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 
-      if (view && this.settings.autoInsert) {
+      if (view) {
         const line = view.editor.getCursor().line;
-        view.editor.setLine(line, this.insertTerms(view.editor.getLine(line)));
+
+        if (this.settings.autoInsert) {
+          view.editor.setLine(line, this.insertTerms(view.editor.getLine(line)));
+        }
+
+        if (this.settings.autoLink) {
+          view.editor.setLine(line, this.insertNoteLinks(view.editor.getLine(line)));
+        }
       }
     }));
 
@@ -133,8 +140,10 @@ export default class Gloss extends Plugin {
 
   insertNoteLinks(text: string) {
     for (const mdf of this.app.vault.getMarkdownFiles().reverse()) {
-      text = this.insertLink(text, mdf.basename, mdf.name);
-      console.log(text);
+      const to_be_replaced = [...text.matchAll(new RegExp(`${mdf.basename}e?s?`, "gmi"))].reverse(); // reverse array in order to do plural before singular
+      for (const replacee of to_be_replaced) {
+        text = this.insertLink(text, replacee[0], mdf.name);
+      }
     }
     return text;
   }
@@ -151,7 +160,7 @@ export default class Gloss extends Plugin {
   }
 
   insertLink(text: string, replacee: string, link: string) {
-    // regex: check if the term is within a markdown link or header, as to not replace terms within links recursively
-    return text.replaceAll(new RegExp(`(?<!\\# |\\[\\[|\\|)${replacee}(?!\\]|\\||s)`, "gm"), "[[" + link + "|" + replacee + "]]");
+    // https://regex101.com/r/Lz2f5T/1
+    return text.replaceAll(new RegExp(`(?<!\\# |\\[\\[|\\||\\#)${replacee}(?!\\]|\\||s)`, "gm"), "[[" + link + "|" + replacee + "]]");
   }
 }
