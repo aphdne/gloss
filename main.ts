@@ -1,9 +1,40 @@
-import { MarkdownView, Plugin } from 'obsidian';
+import { MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
 
 /*
- * TODO: automatic glossary term insertion (without a command)
- * BUG: changing active file destructively edits text (??)
+ * TODO: concatenate glossaries feature
 */
+
+interface Settings {
+  autoInsert: boolean;
+}
+
+const DEFAULT_SETTINGS: Partial<Settings> = {
+  autoInsert: true,
+};
+
+export class SettingsTab extends PluginSettingTab {
+  plugin: Gloss;
+
+  constructor(app: App, plugin: ExamplePlugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+
+  display(): void {
+    let { containerEl } = this;
+
+    containerEl.empty();
+
+    new Setting(containerEl).setName("Auto insert").addToggle((toggle) => {
+      toggle
+        .setValue(this.plugin.settings.autoInsert)
+        .onChange(async (value) => {
+          this.plugin.settings.autoInsert = value;
+          await this.plugin.saveSettings();
+        });
+    })
+  }
+}
 
 interface Definition {
   term: string;
@@ -11,9 +42,12 @@ interface Definition {
 }
 
 export default class Gloss extends Plugin {
+  settings: Settings;
   definitions: Definition[] = [];
 
 	async onload() {
+    await this.loadSettings();
+
     // use onLayoutReady(): https://publish.obsidian.md/liam/Obsidian/API+FAQ/filesystem/getMarkdownFiles+returns+an+empty+array+in+onLoad
     // grab all glossary definitions
     this.app.workspace.onLayoutReady(() => {
@@ -39,6 +73,15 @@ export default class Gloss extends Plugin {
       }
     });
 
+    this.registerEvent(this.app.vault.on('modify', () => {
+      const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+
+      if (view && this.settings.autoInsert) {
+        const line = view.editor.getCursor().line;
+        view.editor.setLine(line, this.insertTerms(view.editor.getLine(line)));
+      }
+    }));
+
     this.addCommand({
       id: "destructively-insert-glossary-terms",
       name: "Destructively insert glossary terms",
@@ -48,7 +91,17 @@ export default class Gloss extends Plugin {
         }
       },
     });
+
+    this.addSettingTab(new SettingsTab(this.app, this));
 	}
+
+  async loadSettings() {
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+  }
+
+  async saveSettings() {
+    await this.saveData(this.settings);
+  }
 
   insertTerms(text: string) {
     for (const def of this.definitions) {
