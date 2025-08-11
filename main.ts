@@ -2,7 +2,7 @@ import { MarkdownView, Plugin } from 'obsidian';
 
 /*
  * TODO: automatic glossary term insertion (without a command)
- * BUG: rendered text affecting underlying markdown file
+ * BUG: changing active file destructively edits text (??)
 */
 
 interface Definition {
@@ -39,42 +39,26 @@ export default class Gloss extends Plugin {
       }
     });
 
-    this.registerEvent(this.app.workspace.on('layout-change', () => {
-      const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-      if (markdownView && markdownView.getMode() == 'preview') {
-        this.insertTerms();
-      }
-    }));
-
-
     this.addCommand({
-      id: "gloss-insert-terms",
-      name: "Insert Glossary Terms",
-      checkCallback: (checking: boolean) => {
-        const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView && markdownView.getMode() == 'preview') {
-          if (!checking) {
-            this.insertTerms();
-          }
-          return true
+      id: "destructively-insert-glossary-terms",
+      name: "Destructively insert glossary terms",
+      editorCallback: (editor: Editor) => {
+        for (let i = 0; i < editor.lineCount(); i++) {
+          editor.setLine(i, this.insertTerms(editor.getLine(i)));
         }
-      }
+      },
     });
 	}
 
-  insertTerms() {
-    const renderer = this.app.workspace.getActiveViewOfType(MarkdownView).previewMode.renderer;
-
-    let text = renderer.text;
+  insertTerms(text: string) {
     for (const def of this.definitions) {
       // regex: case-insensitive keyword search, with or without an 's' or 'es' at the end (for plurals)
-      const to_be_replaced = [...text.matchAll(new RegExp(`${def.term}e?s?`, "gmi"))].reverse();
+      const to_be_replaced = [...text.matchAll(new RegExp(`${def.term}e?s?`, "gmi"))].reverse(); // reverse array in order to do plural before singular
       for (const replacee of to_be_replaced) {
-        // regex: check if the term is within a markdown link or not, as to not replace terms within links recursively
+        // regex: check if the term is within a markdown link or header, as to not replace terms within links recursively
         text = text.replaceAll(new RegExp(`(?<!\\# )${replacee[0]}(?!\\]|\\||s)`, "gm"), "[[" + def.glossary + ".md#" + def.term + "|" + replacee[0] + "]]");
       }
     }
-    // https://forum.obsidian.md/t/is-there-a-pre-render-pre-processor-callback/72530/5
-    renderer.set(text);
+    return text;
   }
 }
