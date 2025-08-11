@@ -6,10 +6,12 @@ import { MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
 
 interface Settings {
   autoInsert: boolean;
+  autoLink: boolean;
 }
 
 const DEFAULT_SETTINGS: Partial<Settings> = {
   autoInsert: true,
+  autoLink: false,
 };
 
 export class SettingsTab extends PluginSettingTab {
@@ -25,14 +27,29 @@ export class SettingsTab extends PluginSettingTab {
 
     containerEl.empty();
 
-    new Setting(containerEl).setName("Auto insert").addToggle((toggle) => {
-      toggle
-        .setValue(this.plugin.settings.autoInsert)
-        .onChange(async (value) => {
-          this.plugin.settings.autoInsert = value;
-          await this.plugin.saveSettings();
-        });
-    })
+    new Setting(containerEl)
+     .setName("Auto insert")
+     .setDesc("Automatically link in glossary headers while editing")
+     .addToggle((toggle) => {
+        toggle
+         .setValue(this.plugin.settings.autoInsert)
+         .onChange(async (value) => {
+           this.plugin.settings.autoInsert = value;
+           await this.plugin.saveSettings();
+         })
+    });
+
+    new Setting(containerEl)
+     .setName("Auto link")
+     .setDesc("Automatically link in other notes while editing")
+     .addToggle((toggle) => {
+        toggle
+         .setValue(this.plugin.settings.autoLink)
+         .onChange(async (value) => {
+           this.plugin.settings.autoLink = value;
+           await this.plugin.saveSettings();
+         })
+    });
   }
 }
 
@@ -50,7 +67,7 @@ export default class Gloss extends Plugin {
 
     // use onLayoutReady(): https://publish.obsidian.md/liam/Obsidian/API+FAQ/filesystem/getMarkdownFiles+returns+an+empty+array+in+onLoad
     // grab all glossary definitions
-    this.app.workspace.onLayoutReady(() => {
+    this.registerEvent(this.app.workspace.onLayoutReady(() => {
       const glossaries = this.app.vault.getMarkdownFiles().filter((tfile) => {
         const fm = this.app.metadataCache.getFileCache(tfile).frontmatter
         if (fm) {
@@ -71,7 +88,7 @@ export default class Gloss extends Plugin {
           }
         })
       }
-    });
+    }));
 
     this.registerEvent(this.app.vault.on('modify', () => {
       const view = this.app.workspace.getActiveViewOfType(MarkdownView);
