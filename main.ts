@@ -2,7 +2,8 @@ import { MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
 
 /*
  * TODO: concatenate glossaries feature
-*/
+ * TODO: dont replace tags with links i.e. #apple -> #[[glossary.md#apple]]
+ */
 
 interface Settings {
   autoInsert: boolean;
@@ -109,6 +110,16 @@ export default class Gloss extends Plugin {
       },
     });
 
+    this.addCommand({
+      id: "destructively-insert-note-links",
+      name: "Destructively insert note links",
+      editorCallback: (editor: Editor) => {
+        for (let i = 0; i < editor.lineCount(); i++) {
+          editor.setLine(i, this.insertNoteLinks(editor.getLine(i)));
+        }
+      },
+    });
+
     this.addSettingTab(new SettingsTab(this.app, this));
 	}
 
@@ -120,15 +131,27 @@ export default class Gloss extends Plugin {
     await this.saveData(this.settings);
   }
 
+  insertNoteLinks(text: string) {
+    for (const mdf of this.app.vault.getMarkdownFiles().reverse()) {
+      text = this.insertLink(text, mdf.basename, mdf.name);
+      console.log(text);
+    }
+    return text;
+  }
+
   insertTerms(text: string) {
     for (const def of this.definitions) {
       // regex: case-insensitive keyword search, with or without an 's' or 'es' at the end (for plurals)
       const to_be_replaced = [...text.matchAll(new RegExp(`${def.term}e?s?`, "gmi"))].reverse(); // reverse array in order to do plural before singular
       for (const replacee of to_be_replaced) {
-        // regex: check if the term is within a markdown link or header, as to not replace terms within links recursively
-        text = text.replaceAll(new RegExp(`(?<!\\# )${replacee[0]}(?!\\]|\\||s)`, "gm"), "[[" + def.glossary + ".md#" + def.term + "|" + replacee[0] + "]]");
+        text = this.insertLink(text, replacee[0], def.glossary + ".md#" + def.term);
       }
     }
     return text;
+  }
+
+  insertLink(text: string, replacee: string, link: string) {
+    // regex: check if the term is within a markdown link or header, as to not replace terms within links recursively
+    return text.replaceAll(new RegExp(`(?<!\\# |\\[\\[|\\|)${replacee}(?!\\]|\\||s)`, "gm"), "[[" + link + "|" + replacee + "]]");
   }
 }
