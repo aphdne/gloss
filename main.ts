@@ -72,24 +72,23 @@ export default class Gloss extends Plugin {
       this.populateDefinitions();
     }));
 
-    this.registerEvent(this.app.vault.on('modify', () => {
-      const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-
-      if (view) {
-        const line = view.editor.getCursor().line;
-
-        if (this.settings.autoInsert) {
-          view.editor.setLine(line, this.insertTerms(view.editor.getLine(line)));
-        }
-
-        if (this.settings.autoLink) {
-          view.editor.setLine(line, this.insertNoteLinks(view.editor.getLine(line)));
-        }
-      }
-    }));
+    // this.registerEvent(this.app.vault.on('modify', () => {
+    //   const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+    //
+    //   if (view) {
+    //     const line = view.editor.getCursor().line;
+    //
+    //     if (this.settings.autoInsert) {
+    //       view.editor.setLine(line, this.insertTerms(view.editor.getLine(line)));
+    //     }
+    //
+    //     if (this.settings.autoLink) {
+    //       view.editor.setLine(line, this.insertNoteLinks(view.editor.getLine(line)));
+    //     }
+    //   }
+    // }));
 
     this.registerMarkdownCodeBlockProcessor("gloss", (src, el, ctx) => {
-      console.log(src);
     });
 
     this.addCommand({
@@ -105,8 +104,24 @@ export default class Gloss extends Plugin {
       id: "destructively-insert-glossary-terms",
       name: "Destructively insert glossary terms",
       editorCallback: (editor: Editor) => {
+        let inCodeblock = false;
+        let inFrontmatter = false;
         for (let i = 0; i < editor.lineCount(); i++) {
-          editor.setLine(i, this.insertTerms(editor.getLine(i)));
+          let line = editor.getLine(i);
+
+          if (i == 0 && line == "---")
+            inFrontmatter = true;
+
+          if (inFrontmatter && line == "---")
+            inFrontmatter = false;
+
+          if (line.startsWith("```"))
+            inCodeblock = !inCodeblock;
+
+          if (inCodeblock || inFrontmatter)
+            continue;
+
+          editor.setLine(i, this.insertTerms(line));
         }
       },
     });
@@ -115,8 +130,24 @@ export default class Gloss extends Plugin {
       id: "destructively-insert-note-links",
       name: "Destructively insert note links",
       editorCallback: (editor: Editor) => {
+        let inCodeblock = false;
+        let inFrontmatter = false;
         for (let i = 0; i < editor.lineCount(); i++) {
-          editor.setLine(i, this.insertNoteLinks(editor.getLine(i)));
+          let line = editor.getLine(i);
+
+          if (i == 0 && line == "---")
+            inFrontmatter = true;
+
+          if (inFrontmatter && line == "---")
+            inFrontmatter = false;
+
+          if (line.startsWith("```"))
+            inCodeblock = !inCodeblock;
+
+          if (inCodeblock || inFrontmatter)
+            continue;
+
+          editor.setLine(i, this.insertNoteLinks(line));
         }
       },
     });
