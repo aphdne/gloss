@@ -271,8 +271,8 @@ s
       if (this.wordBlacklist.contains(replacee[0].toLowerCase()))
         continue;
 
-      // https://regex101.com/r/Lz2f5T/4
-      text = text.replaceAll(new RegExp(`(?<!\\# |\\[\\[|\\||\\#)\\b${this.sanitise(replacee[0])}(?=\\W)(?!\\]|\\||s)`, "gm"), "[[" + link + "|" + replacee[0] + "]]");
+      // https://regex101.com/r/Lz2f5T/6
+      text = text.replaceAll(new RegExp(`(?<!\\# |\\[\\[|\\||\\#)\\b${this.sanitise(replacee[0])}(?=\\W|\$)(?!\\]|\\||s)`, "gm"), "[[" + link + "|" + replacee[0] + "]]");
     }
     return text;
   }
