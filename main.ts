@@ -2,8 +2,7 @@ import { MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
 
 /*
  * TODO: concatenate glossaries feature
- * TODO: autoinsert at different events?
- * - i dont want a link to be inserted for C.md when im in the middle of typing C++
+ * TODO: autoinsert at different events? i dont want a link to be inserted for C.md when im in the middle of typing C++
  * TODO: work with file aliases
  * BUG: error on unload (?)
  * BUG: links inserted mid-word
@@ -179,12 +178,12 @@ export default class Gloss extends Plugin {
 	}
 s
   onunload() {
-
   }
 
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
     this.blacklist = this.settings.blacklist.split("; ");
+    this.blacklist.forEach((a) => a.toLowerCase());
     console.log(this.blacklist);
   }
 
@@ -244,7 +243,7 @@ s
   }
 
   insertLink(text: string, replacee: string, link: string) {
-    if (this.blacklist.contains(replacee))
+    if (this.blacklist.contains(replacee.toLowerCase()))
       return text;
 
     // https://regex101.com/r/Lz2f5T/4
