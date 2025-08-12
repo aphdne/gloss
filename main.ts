@@ -2,9 +2,9 @@ import { MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
 
 /*
  * TODO: concatenate glossaries feature
- * TODO: blacklist
  * TODO: autoinsert at different events?
- *  - i dont want a link to be inserted for C.md when im in the middle of typing C++
+ * - i dont want a link to be inserted for C.md when im in the middle of typing C++
+ * TODO: work with file aliases
  * BUG: error on unload (?)
  * BUG: links inserted mid-word
  */
@@ -12,11 +12,13 @@ import { MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
 interface Settings {
   autoInsert: boolean;
   autoLink: boolean;
+  blacklist: string;
 }
 
 const DEFAULT_SETTINGS: Partial<Settings> = {
   autoInsert: true,
   autoLink: false,
+  blacklist: "",
 };
 
 export class SettingsTab extends PluginSettingTab {
@@ -55,6 +57,19 @@ export class SettingsTab extends PluginSettingTab {
            await this.plugin.saveSettings();
          })
     });
+
+    new Setting(containerEl)
+     .setName("Blacklist")
+     .setDesc("Words here will not replaced with links; case-insensitive")
+     .addText((text) => {
+        text
+         .setPlaceholder("alpha; bravo; charlie; delta; ...")
+         .setValue(this.plugin.settings.blacklist)
+         .onChange(async (value) => {
+           this.plugin.settings.blacklist = value;
+           await this.plugin.saveSettings();
+         })
+    });
   }
 }
 
@@ -66,6 +81,7 @@ interface Definition {
 export default class Gloss extends Plugin {
   settings: Settings;
   definitions: Definition[] = [];
+  blacklist: string[] = [];
 
 	async onload() {
     await this.loadSettings();
@@ -168,10 +184,13 @@ s
 
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.blacklist = this.settings.blacklist.split("; ");
+    console.log(this.blacklist);
   }
 
   async saveSettings() {
     await this.saveData(this.settings);
+    this.loadSettings();
   }
 
   populateDefinitions() {
@@ -205,7 +224,7 @@ s
 
   insertNoteLinks(text: string) {
     for (const mdf of this.app.vault.getMarkdownFiles().reverse()) {
-      const replacees = [...text.matchAll(new RegExp(`${mdf.basename.replace("+", "\\+")}e?s?`, "gmi"))].reverse(); // reverse array in order to do plural before singular
+      const replacees = [...text.matchAll(new RegExp(`${this.sanitise(mdf.basename)}e?s?`, "gmi"))].reverse(); // reverse array in order to do plural before singular
       for (const replacee of replacees) {
         text = this.insertLink(text, replacee[0], mdf.name);
       }
@@ -216,7 +235,7 @@ s
   insertTerms(text: string) {
     for (const def of this.definitions.reverse()) {
       // regex: case-insensitive keyword search, with or without an 's' or 'es' at the end (for plurals)
-      const replacees = [...text.matchAll(new RegExp(`${def.term.replace("+", "\\+")}e?s?`, "gmi"))].reverse(); // reverse array in order to do plural before singular
+      const replacees = [...text.matchAll(new RegExp(`${this.sanitise(def.term)}e?s?`, "gmi"))].reverse(); // reverse array in order to do plural before singular
       for (const replacee of replacees) {
         text = this.insertLink(text, replacee[0], def.glossary + ".md#" + def.term);
       }
@@ -225,7 +244,14 @@ s
   }
 
   insertLink(text: string, replacee: string, link: string) {
+    if (this.blacklist.contains(replacee))
+      return text;
+
     // https://regex101.com/r/Lz2f5T/4
-    return text.replaceAll(new RegExp(`(?<!\\# |\\[\\[|\\||\\#)\\b${replacee.replace("+", "\\+")}(?=\\W)(?!\\]|\\||s)`, "gm"), "[[" + link + "|" + replacee + "]]");
+    return text.replaceAll(new RegExp(`(?<!\\# |\\[\\[|\\||\\#)\\b${this.sanitise(replacee)}(?=\\W)(?!\\]|\\||s)`, "gm"), "[[" + link + "|" + replacee + "]]");
+  }
+
+  sanitise(input: string) {
+    return input.replace("+", "\\+")
   }
 }
