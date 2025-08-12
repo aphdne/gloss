@@ -6,6 +6,7 @@ import { MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
  * TODO: work with file aliases
  * BUG: error on unload (?)
  * BUG: links inserted mid-word
+ * BUG: glossary links not inserted for terms with more than 1 word
  */
 
 interface Settings {
@@ -114,7 +115,7 @@ export default class Gloss extends Plugin {
         const line = view.editor.getCursor().line;
 
         if (this.settings.autoInsert) {
-          view.editor.setLine(line, this.insertTerms(view.editor.getLine(line)));
+          view.editor.setLine(line, this.insertTermLinks(view.editor.getLine(line)));
         }
 
         if (this.settings.autoLink) {
@@ -135,9 +136,10 @@ export default class Gloss extends Plugin {
       id: "destructively-insert-glossary-terms",
       name: "Destructively insert glossary terms",
       editorCallback: (editor: Editor, view: MarkdownView) => {
-        if (this.fileBlacklist.contains(view.file.name.toLowerCase()))
+        if (this.fileBlacklist.contains(view.file.name.toLowerCase())) {
           new Notice("This file is blacklisted");
           return;
+        }
 
         let inCodeblock = false;
         let inFrontmatter = false;
@@ -156,7 +158,7 @@ export default class Gloss extends Plugin {
           if (inCodeblock || inFrontmatter)
             continue;
 
-          editor.setLine(i, this.insertTerms(line));
+          editor.setLine(i, this.insertTermLinks(line));
         }
       },
     });
@@ -165,9 +167,10 @@ export default class Gloss extends Plugin {
       id: "destructively-insert-note-links",
       name: "Destructively insert note links",
       editorCallback: (editor: Editor, view: MarkdownView) => {
-        if (this.fileBlacklist.contains(view.file.name.toLowerCase()))
+        if (this.fileBlacklist.contains(view.file.name.toLowerCase())) {
           new Notice("This file is blacklisted");
           return;
+        }
 
         let inCodeblock = false;
         let inFrontmatter = false;
@@ -249,31 +252,29 @@ s
 
   insertNoteLinks(text: string) {
     for (const mdf of this.app.vault.getMarkdownFiles().reverse()) {
-      const replacees = [...text.matchAll(new RegExp(`${this.sanitise(mdf.basename)}e?s?`, "gmi"))].reverse(); // reverse array in order to do plural before singular
-      for (const replacee of replacees) {
-        text = this.insertLink(text, replacee[0], mdf.name);
-      }
+      text = this.insertLinks(text, mdf.basename, mdf.name);
     }
     return text;
   }
 
-  insertTerms(text: string) {
+  insertTermLinks(text: string) {
     for (const def of this.definitions.reverse()) {
-      // regex: case-insensitive keyword search, with or without an 's' or 'es' at the end (for plurals)
-      const replacees = [...text.matchAll(new RegExp(`${this.sanitise(def.term)}e?s?`, "gmi"))].reverse(); // reverse array in order to do plural before singular
-      for (const replacee of replacees) {
-        text = this.insertLink(text, replacee[0], def.glossary + ".md#" + def.term);
-      }
+      text = this.insertLinks(text, def.term, def.glossary + ".md#" + def.term);
     }
     return text;
   }
 
-  insertLink(text: string, replacee: string, link: string) {
-    if (this.wordBlacklist.contains(replacee.toLowerCase()))
-      return text;
+  insertLinks(text: string, term: string, link: string) {
+    // regex: case-insensitive keyword search, with or without an 's' or 'es' at the end (for plurals)
+    const replacees = [...text.matchAll(new RegExp(`${this.sanitise(term)}e?s?`, "gmi"))].reverse(); // reverse array in order to do plural before singular
+    for (const replacee of replacees) {
+      if (this.wordBlacklist.contains(replacee[0].toLowerCase()))
+        continue;
 
-    // https://regex101.com/r/Lz2f5T/4
-    return text.replaceAll(new RegExp(`(?<!\\# |\\[\\[|\\||\\#)\\b${this.sanitise(replacee)}(?=\\W)(?!\\]|\\||s)`, "gm"), "[[" + link + "|" + replacee + "]]");
+      // https://regex101.com/r/Lz2f5T/4
+      text = text.replaceAll(new RegExp(`(?<!\\# |\\[\\[|\\||\\#)\\b${this.sanitise(replacee[0])}(?=\\W)(?!\\]|\\||s)`, "gm"), "[[" + link + "|" + replacee[0] + "]]");
+    }
+    return text;
   }
 
   sanitise(input: string) {
