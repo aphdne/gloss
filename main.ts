@@ -2,7 +2,9 @@ import { MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
 
 /*
  * TODO: concatenate glossaries feature
+ * TODO: blacklisted terms
  * BUG: error on unload (?)
+ * BUG: links inserted mid-word
  */
 
 interface Settings {
@@ -197,13 +199,10 @@ export default class Gloss extends Plugin {
     this.definitions.sort((a, b) => {
       a.charCodeAt(0) < b.charCodeAt(0);
     });
-
-    console.log(this.definitions);
   }
 
   insertNoteLinks(text: string) {
     for (const mdf of this.app.vault.getMarkdownFiles().reverse()) {
-      console.log(mdf.basename);
       const to_be_replaced = [...text.matchAll(new RegExp(`${mdf.basename.replace("+", "\\+")}e?s?`, "gmi"))].reverse(); // reverse array in order to do plural before singular
       for (const replacee of to_be_replaced) {
         text = this.insertLink(text, replacee[0], mdf.name);
@@ -215,7 +214,7 @@ export default class Gloss extends Plugin {
   insertTerms(text: string) {
     for (const def of this.definitions.reverse()) {
       // regex: case-insensitive keyword search, with or without an 's' or 'es' at the end (for plurals)
-      const to_be_replaced = [...text.matchAll(new RegExp(`${def.term}e?s?`, "gmi"))].reverse(); // reverse array in order to do plural before singular
+      const to_be_replaced = [...text.matchAll(new RegExp(`${def.term.replace("+", "\\+")}e?s?`, "gmi"))].reverse(); // reverse array in order to do plural before singular
       for (const replacee of to_be_replaced) {
         text = this.insertLink(text, replacee[0], def.glossary + ".md#" + def.term);
       }
@@ -224,7 +223,7 @@ export default class Gloss extends Plugin {
   }
 
   insertLink(text: string, replacee: string, link: string) {
-    // https://regex101.com/r/Lz2f5T/1
-    return text.replaceAll(new RegExp(`(?<!\\# |\\[\\[|\\||\\#)${replacee.replace("+", "\\+")}(?!\\]|\\||s)`, "gm"), "[[" + link + "|" + replacee + "]]");
+    // https://regex101.com/r/Lz2f5T/4
+    return text.replaceAll(new RegExp(`(?<!\\# |\\[\\[|\\||\\#)\\b${replacee.replace("+", "\\+")}(?=\\W)(?!\\]|\\||s)`, "gm"), "[[" + link + "|" + replacee + "]]");
   }
 }
