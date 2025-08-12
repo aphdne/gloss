@@ -12,12 +12,14 @@ interface Settings {
   autoInsert: boolean;
   autoLink: boolean;
   wordBlacklist: string;
+  fileBlacklist: string;
 }
 
 const DEFAULT_SETTINGS: Partial<Settings> = {
   autoInsert: true,
   autoLink: false,
   wordBlacklist: "",
+  fileBlacklist: "",
 };
 
 export class SettingsTab extends PluginSettingTab {
@@ -58,7 +60,7 @@ export class SettingsTab extends PluginSettingTab {
     });
 
     new Setting(containerEl)
-     .setName("Blacklist")
+     .setName("Word blacklist")
      .setDesc("Words here will not replaced with links; case-insensitive")
      .addText((text) => {
         text
@@ -66,6 +68,19 @@ export class SettingsTab extends PluginSettingTab {
          .setValue(this.plugin.settings.wordBlacklist)
          .onChange(async (value) => {
            this.plugin.settings.wordBlacklist = value;
+           await this.plugin.saveSettings();
+         })
+    });
+
+    new Setting(containerEl)
+     .setName("File blacklist")
+     .setDesc("Files here are exempt from auto linking; case-insensitive")
+     .addText((text) => {
+        text
+         .setPlaceholder("alpha; bravo; charlie; delta; ...")
+         .setValue(this.plugin.settings.fileBlacklist)
+         .onChange(async (value) => {
+           this.plugin.settings.fileBlacklist = value;
            await this.plugin.saveSettings();
          })
     });
@@ -81,6 +96,7 @@ export default class Gloss extends Plugin {
   settings: Settings;
   definitions: Definition[] = [];
   wordBlacklist: string[] = [];
+  fileBlacklist: string[] = [];
 
 	async onload() {
     await this.loadSettings();
@@ -88,7 +104,10 @@ export default class Gloss extends Plugin {
     // use onLayoutReady(): https://publish.obsidian.md/liam/Obsidian/API+FAQ/filesystem/getMarkdownFiles+returns+an+empty+array+in+onLoad
     this.registerEvent(this.app.workspace.onLayoutReady(() => this.populateDefinitions()));
 
-    this.registerEvent(this.app.vault.on('modify', () => {
+    this.registerEvent(this.app.vault.on('modify', (file: TAbstractFile) => {
+      if (this.fileBlacklist.contains(file.name.toLowerCase()))
+        return;
+
       const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 
       if (view) {
@@ -115,7 +134,11 @@ export default class Gloss extends Plugin {
     this.addCommand({
       id: "destructively-insert-glossary-terms",
       name: "Destructively insert glossary terms",
-      editorCallback: (editor: Editor) => {
+      editorCallback: (editor: Editor, view: MarkdownView) => {
+        if (this.fileBlacklist.contains(view.file.name.toLowerCase()))
+          new Notice("This file is blacklisted");
+          return;
+
         let inCodeblock = false;
         let inFrontmatter = false;
         for (let i = 0; i < editor.lineCount(); i++) {
@@ -141,7 +164,11 @@ export default class Gloss extends Plugin {
     this.addCommand({
       id: "destructively-insert-note-links",
       name: "Destructively insert note links",
-      editorCallback: (editor: Editor) => {
+      editorCallback: (editor: Editor, view: MarkdownView) => {
+        if (this.fileBlacklist.contains(view.file.name.toLowerCase()))
+          new Notice("This file is blacklisted");
+          return;
+
         let inCodeblock = false;
         let inFrontmatter = false;
         for (let i = 0; i < editor.lineCount(); i++) {
@@ -172,8 +199,16 @@ s
 
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-    this.wordBlacklist = this.settings.wordBlacklist.split("; ");
-    this.wordBlacklist.forEach((a) => a.toLowerCase());
+
+    this.wordBlacklist = [];
+    this.settings.wordBlacklist.split(";").forEach((a) => this.wordBlacklist.push(a.toLowerCase().trim()));
+
+    this.fileBlacklist = [];
+    this.settings.fileBlacklist.split(";").forEach((a) => {
+      if (!a.endsWith(".md"))
+        a += ".md";
+      this.fileBlacklist.push(a.toLowerCase().trim());
+    });
   }
 
   async saveSettings() {
