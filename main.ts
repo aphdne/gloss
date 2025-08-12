@@ -135,63 +135,13 @@ export default class Gloss extends Plugin {
     this.addCommand({
       id: "destructively-insert-glossary-terms",
       name: "Destructively insert glossary terms",
-      editorCallback: (editor: Editor, view: MarkdownView) => {
-        if (this.fileBlacklist.contains(view.file.name.toLowerCase())) {
-          new Notice("This file is blacklisted");
-          return;
-        }
-
-        let inCodeblock = false;
-        let inFrontmatter = false;
-        for (let i = 0; i < editor.lineCount(); i++) {
-          let line = editor.getLine(i);
-
-          if (i == 0 && line == "---")
-            inFrontmatter = true;
-
-          if (inFrontmatter && line == "---")
-            inFrontmatter = false;
-
-          if (line.startsWith("```"))
-            inCodeblock = !inCodeblock;
-
-          if (inCodeblock || inFrontmatter)
-            continue;
-
-          editor.setLine(i, this.insertTermLinks(line));
-        }
-      },
+      editorCallback: (editor: Editor, view: MarkdownView) => processFile(editor, view, false),
     });
 
     this.addCommand({
       id: "destructively-insert-note-links",
       name: "Destructively insert note links",
-      editorCallback: (editor: Editor, view: MarkdownView) => {
-        if (this.fileBlacklist.contains(view.file.name.toLowerCase())) {
-          new Notice("This file is blacklisted");
-          return;
-        }
-
-        let inCodeblock = false;
-        let inFrontmatter = false;
-        for (let i = 0; i < editor.lineCount(); i++) {
-          let line = editor.getLine(i);
-
-          if (i == 0 && line == "---")
-            inFrontmatter = true;
-
-          if (inFrontmatter && line == "---")
-            inFrontmatter = false;
-
-          if (line.startsWith("```"))
-            inCodeblock = !inCodeblock;
-
-          if (inCodeblock || inFrontmatter)
-            continue;
-
-          editor.setLine(i, this.insertNoteLinks(line));
-        }
-      },
+      editorCallback: (editor: Editor, view: MarkdownView) => processFile(editor, view, true),
     });
 
     this.addSettingTab(new SettingsTab(this.app, this));
@@ -248,6 +198,33 @@ s
     this.definitions.sort((a, b) => { // sort alphabetically
       a.charCodeAt(0) < b.charCodeAt(0);
     });
+  }
+
+  processFile(editor: Editor, view: MarkdownView, notes: boolean) {
+    if (this.fileBlacklist.contains(view.file.name.toLowerCase())) {
+      new Notice("This file is blacklisted");
+      return;
+    }
+
+    let inCodeblock = false;
+    let inFrontmatter = false;
+    for (let i = 0; i < editor.lineCount(); i++) {
+      let line = editor.getLine(i);
+
+      if (i == 0 && line == "---")
+        inFrontmatter = true;
+
+      if (inFrontmatter && line == "---")
+        inFrontmatter = false;
+
+      if (line.startsWith("```"))
+        inCodeblock = !inCodeblock;
+
+      if (inCodeblock || inFrontmatter)
+        continue;
+
+      editor.setLine(i, notes ? this.insertNoteLinks(line) : this.insertTermLinks(line));
+    }
   }
 
   insertNoteLinks(text: string) {
