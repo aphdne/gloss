@@ -11,13 +11,13 @@ import { MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
 interface Settings {
   autoInsert: boolean;
   autoLink: boolean;
-  blacklist: string;
+  wordBlacklist: string;
 }
 
 const DEFAULT_SETTINGS: Partial<Settings> = {
   autoInsert: true,
   autoLink: false,
-  blacklist: "",
+  wordBlacklist: "",
 };
 
 export class SettingsTab extends PluginSettingTab {
@@ -63,9 +63,9 @@ export class SettingsTab extends PluginSettingTab {
      .addText((text) => {
         text
          .setPlaceholder("alpha; bravo; charlie; delta; ...")
-         .setValue(this.plugin.settings.blacklist)
+         .setValue(this.plugin.settings.wordBlacklist)
          .onChange(async (value) => {
-           this.plugin.settings.blacklist = value;
+           this.plugin.settings.wordBlacklist = value;
            await this.plugin.saveSettings();
          })
     });
@@ -80,7 +80,7 @@ interface Definition {
 export default class Gloss extends Plugin {
   settings: Settings;
   definitions: Definition[] = [];
-  blacklist: string[] = [];
+  wordBlacklist: string[] = [];
 
 	async onload() {
     await this.loadSettings();
@@ -104,20 +104,10 @@ export default class Gloss extends Plugin {
       }
     }));
 
-    // this.registerMarkdownCodeBlockProcessor("gloss", (src, el, ctx) => {
-    //   if (src == "") {
-    //     for (const def of this.definitions) {
-    //       const h = el.createEl("h1", { text: def.term });
-    //       const p = el.createEl("p",  { text: "[[test.md]]" });
-    //     }
-    //   }
-    // });
-
     this.addCommand({
       id: "update-glossary-terms",
       name: "Update glossary terms",
       callback: () => {
-        this.definitions = [];
         this.populateDefinitions();
       },
     });
@@ -182,9 +172,8 @@ s
 
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-    this.blacklist = this.settings.blacklist.split("; ");
-    this.blacklist.forEach((a) => a.toLowerCase());
-    console.log(this.blacklist);
+    this.wordBlacklist = this.settings.wordBlacklist.split("; ");
+    this.wordBlacklist.forEach((a) => a.toLowerCase());
   }
 
   async saveSettings() {
@@ -193,6 +182,8 @@ s
   }
 
   populateDefinitions() {
+    this.definitions = [];
+
     const glossaries = this.app.vault.getMarkdownFiles().filter((tfile) => {
       const fm = this.app.metadataCache.getFileCache(tfile).frontmatter
       if (fm) {
@@ -243,7 +234,7 @@ s
   }
 
   insertLink(text: string, replacee: string, link: string) {
-    if (this.blacklist.contains(replacee.toLowerCase()))
+    if (this.wordBlacklist.contains(replacee.toLowerCase()))
       return text;
 
     // https://regex101.com/r/Lz2f5T/4
