@@ -6,7 +6,6 @@ import { MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
  * TODO: work with file aliases
  * BUG: error on unload (?)
  * BUG: links inserted mid-word
- * BUG: glossary links not inserted for terms with more than 1 word
  */
 
 interface Settings {
@@ -14,6 +13,7 @@ interface Settings {
   autoLink: boolean;
   wordBlacklist: string;
   fileBlacklist: string;
+  glossaryTags: string;
 }
 
 const DEFAULT_SETTINGS: Partial<Settings> = {
@@ -21,6 +21,7 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   autoLink: false,
   wordBlacklist: "",
   fileBlacklist: "",
+  glossaryTags: "glossary",
 };
 
 export class SettingsTab extends PluginSettingTab {
@@ -85,6 +86,19 @@ export class SettingsTab extends PluginSettingTab {
            await this.plugin.saveSettings();
          })
     });
+
+    new Setting(containerEl)
+     .setName("Glossary tag")
+     .setDesc("Files with this tag will be scraped for definitions")
+     .addText((text) => {
+        text
+         .setPlaceholder("glossary; ...")
+         .setValue(this.plugin.settings.glossaryTags)
+         .onChange(async (value) => {
+           this.plugin.settings.glossaryTags = value;
+           await this.plugin.saveSettings();
+         })
+    });
   }
 }
 
@@ -98,6 +112,7 @@ export default class Gloss extends Plugin {
   definitions: Definition[] = [];
   wordBlacklist: string[] = [];
   fileBlacklist: string[] = [];
+  glossaryTags: string[] = [];
 
 	async onload() {
     await this.loadSettings();
@@ -162,6 +177,9 @@ s
         a += ".md";
       this.fileBlacklist.push(a.toLowerCase().trim());
     });
+
+    this.glossaryTags = [];
+    this.settings.glossaryTags.split(";").forEach((a) => this.glossaryTags.push(a.trim()));
   }
 
   async saveSettings() {
@@ -176,7 +194,9 @@ s
       const fm = this.app.metadataCache.getFileCache(tfile).frontmatter
       if (fm) {
         if (fm.tags) {
-          return fm.tags.contains("glossary");
+          for (const tag of this.glossaryTags) {
+            return fm.tags.contains(tag);
+          }
         }
       }
       return false;
