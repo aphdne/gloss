@@ -4,8 +4,10 @@ import { MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
  * TODO: concatenate glossaries feature
  * TODO: autoinsert at different events? i dont want a link to be inserted for C.md when im in the middle of typing C++
  * TODO: work with file aliases
+ * TODO: support definition "aliases"
+ * TODO: support undo/redo
  * BUG: error on unload (?)
- * BUG: links inserted mid-word
+ * BUG: links inserted mid-word -> TODO #2
  */
 
 interface Settings {
@@ -121,6 +123,15 @@ export default class Gloss extends Plugin {
     this.registerEvent(this.app.workspace.onLayoutReady(() => this.populateDefinitions()));
 
     this.registerEvent(this.app.vault.on('modify', (file: TAbstractFile) => {
+      // NOTE: sorting like this doesn't work when its in populateDefinitions()/onLayoutReady()... so it's here instead
+      this.definitions.sort((a, b) => {
+        if (a.term.length > b.term.length)
+          return 1
+        else if (a.term.length == b.term.length)
+          return 0
+        return -1
+      });
+
       if (this.fileBlacklist.contains(file.name.toLowerCase()))
         return;
 
@@ -150,13 +161,13 @@ export default class Gloss extends Plugin {
     this.addCommand({
       id: "destructively-insert-glossary-terms",
       name: "Destructively insert glossary terms",
-      editorCallback: (editor: Editor, view: MarkdownView) => processFile(editor, view, false),
+      editorCallback: (editor: Editor, view: MarkdownView) => this.processFile(editor, view, false),
     });
 
     this.addCommand({
       id: "destructively-insert-note-links",
       name: "Destructively insert note links",
-      editorCallback: (editor: Editor, view: MarkdownView) => processFile(editor, view, true),
+      editorCallback: (editor: Editor, view: MarkdownView) => this.processFile(editor, view, true),
     });
 
     this.addSettingTab(new SettingsTab(this.app, this));
@@ -215,9 +226,6 @@ s
       })
     }
 
-    this.definitions.sort((a, b) => { // sort alphabetically
-      a.charCodeAt(0) < b.charCodeAt(0);
-    });
   }
 
   processFile(editor: Editor, view: MarkdownView, notes: boolean) {
@@ -262,14 +270,19 @@ s
   }
 
   insertLinks(text: string, term: string, link: string) {
-    // regex: case-insensitive keyword search, with or without an 's' or 'es' at the end (for plurals)
-    const replacees = [...text.matchAll(new RegExp(`${this.sanitise(term)}e?s?`, "gmi"))].reverse(); // reverse array in order to do plural before singular
-    for (const replacee of replacees) {
-      if (this.wordBlacklist.contains(replacee[0].toLowerCase()))
+    text = this.sanitise(text);
+    // https://regex101.com/r/9eA7Sl/1
+    // 1st capture group captures $term within wikilinks, to filter them out
+    // 2nd capture group captures $term, except for within headers and tags, and including with an -ed, -es, or -s suffix to allow for plurals etc.
+    const re  = `(?<=\\[\\[.*)${term}(?!.*\\[\\[)(?=.*\\]\\])|((?<!\\#|^\\#.*)\\b${term}[es]?s?[ed]?\\b)`;
+    const replacees = [...text.matchAll(new RegExp(re, "gmi"))].reverse();
+
+    for (let replacee of replacees) {
+      // index with [1] to use 2nd capture group
+      if (!replacee[1] || this.wordBlacklist.contains(replacee[1].toLowerCase()))
         continue;
 
-      // https://regex101.com/r/Lz2f5T/6
-      text = text.replaceAll(new RegExp(`(?<!\\# |\\[\\[|\\||\\#)\\b${this.sanitise(replacee[0])}(?=\\W|\$)(?!\\]|\\||s)`, "gm"), "[[" + link + "|" + replacee[0] + "]]");
+      text = text.replaceAll(replacee[1], "[[" + link + "|" + replacee[1] + "]]");
     }
     return text;
   }
