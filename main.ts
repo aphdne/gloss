@@ -128,10 +128,10 @@ export default class Gloss extends Plugin {
       // NOTE: sorting doesn't work when its in populateDefinitions()/onLayoutReady()... so it's here instead
       this.definitions.sort((a, b) => {
         if (a.term.length > b.term.length)
-          return 1
-        else if (a.term.length == b.term.length)
-          return 0
-        return -1
+          return 1;
+        else if (a.term.length < b.term.length)
+          return -1;
+        return 0;
       });
 
       const view = this.app.workspace.getActiveViewOfType(MarkdownView);
@@ -269,7 +269,7 @@ s
   }
 
   insertLinks(text: string, term: string, link: string) {
-    text = this.sanitise(text);
+    term = this.sanitise(term);
     // https://regex101.com/r/9eA7Sl/1
     // 1st capture group captures $term within wikilinks, to filter them out
     // 2nd capture group captures $term, except for within headers and tags, and including with an -ed, -es, or -s suffix to allow for plurals etc.
