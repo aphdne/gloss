@@ -2,12 +2,11 @@ import { MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
 
 /*
  * TODO: concatenate glossaries feature
- * TODO: autoinsert at different events? i dont want a link to be inserted for C.md when im in the middle of typing C++
  * TODO: work with file aliases
  * TODO: support definition "aliases"
+ * TODO: deal with definition name conflicts
  * TODO: support undo/redo
  * BUG: error on unload (?)
- * BUG: links inserted mid-word -> TODO #2
  */
 
 interface Settings {
@@ -114,7 +113,7 @@ export default class Gloss extends Plugin {
   definitions: Definition[] = [];
   wordBlacklist: string[] = [];
   fileBlacklist: string[] = [];
-  glossaryTags: string[] = [];
+  glossaryTags:  string[] = [];
 
 	async onload() {
     await this.loadSettings();
@@ -122,8 +121,11 @@ export default class Gloss extends Plugin {
     // use onLayoutReady(): https://publish.obsidian.md/liam/Obsidian/API+FAQ/filesystem/getMarkdownFiles+returns+an+empty+array+in+onLoad
     this.registerEvent(this.app.workspace.onLayoutReady(() => this.populateDefinitions()));
 
-    this.registerEvent(this.app.vault.on('modify', (file: TAbstractFile) => {
-      // NOTE: sorting like this doesn't work when its in populateDefinitions()/onLayoutReady()... so it's here instead
+    this.registerEvent(this.app.workspace.on('layout-change', () => {
+      if (this.fileBlacklist.contains(this.app.workspace.activeEditor.file.name.toLowerCase()))
+        return;
+
+      // NOTE: sorting doesn't work when its in populateDefinitions()/onLayoutReady()... so it's here instead
       this.definitions.sort((a, b) => {
         if (a.term.length > b.term.length)
           return 1
@@ -131,9 +133,6 @@ export default class Gloss extends Plugin {
           return 0
         return -1
       });
-
-      if (this.fileBlacklist.contains(file.name.toLowerCase()))
-        return;
 
       const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 
