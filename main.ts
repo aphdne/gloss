@@ -5,7 +5,7 @@ import { MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
  * TODO: work with file aliases
  * TODO: support definition "aliases"
  * TODO: deal with definition name conflicts
- * TODO: support undo/redo
+ * TODO: support undo/redo better
  * BUG: error on unload (?)
  */
 
@@ -270,10 +270,10 @@ s
 
   insertLinks(text: string, term: string, link: string) {
     term = this.sanitise(term);
-    // https://regex101.com/r/9eA7Sl/1
+    // https://regex101.com/r/9eA7Sl/2
     // 1st capture group captures $term within wikilinks, to filter them out
     // 2nd capture group captures $term, except for within headers and tags, and including with an -ed, -es, or -s suffix to allow for plurals etc.
-    const re  = `(?<=\\[\\[.*)${term}(?!.*\\[\\[)(?=.*\\]\\])|((?<!\\#|^\\#.*)\\b${term}[es]?s?[ed]?\\b)`;
+    const re  = `(?<=\\[\\[.*)${term}(?![^\\]\\]]*\\[\\[)(?=.*\\]\\])|((?<!\\#|^\\#.*)\\b${term}[es]?s?[ed]?\\b)`;
     const replacees = [...text.matchAll(new RegExp(re, "gmi"))].reverse();
 
     for (let replacee of replacees) {
