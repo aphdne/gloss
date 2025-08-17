@@ -7,7 +7,7 @@ import { MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
  * TODO: deal with definition name conflicts
  * TODO: support undo/redo better
  * TODO: command to remove all glossary links
- * TODO: add feature to specify specific words to be replaced
+ * TODO: add feature to specify specific words to be replaced (fixed by aliases)
  *  - i.e. "class" -> "[[Class Types|class]]"
  * BUG: error on unload (?)
  */
@@ -177,7 +177,21 @@ export default class Gloss extends Plugin {
       id: "destructively-remove-glossary-links",
       name: "Destructively remove glossary links",
       editorCallback: (editor: Editor, view: MarkdownView) => {
-        // TODO: implement
+        for (let g = 0; g < this.glossaries.length; g++) {
+          // https://regex101.com/r/lN5MkO/1
+          const re = `\\[\\[${this.glossaries[g].basename}.[^\\[\\[]*\\]\\]`;
+          for (let i = 0; i < editor.lineCount(); i++) {
+            let line = editor.getLine(i);
+
+            const replacees = [...line.matchAll(new RegExp(re, "gmi"))].reverse();
+            for (let replacee of replacees) {
+              const replaced = replacee[0].match(new RegExp(`(?<=\\|).*(?=\\]\\])`, "gmi"))[0];
+              line = line.replaceAll(replacee[0], replaced);
+            }
+
+            editor.setLine(i, line);
+          }
+        }
       },
     });
 
@@ -233,7 +247,7 @@ s
         for (let i = 0; i < arr.length; i++) {
           this.definitions.push({
             term: arr[i][0],
-            glossary: g_i
+            glossary: g_i-1
           });
         }
       })
@@ -278,14 +292,14 @@ s
 
   insertTermLinks(text: string) {
     for (const def of this.definitions.reverse()) {
-      text = this.insertLinks(text, def.term, def.glossary + ".md#" + def.term);
+      text = this.insertLinks(text, def.term, this.glossaries[def.glossary].basename + ".md#" + def.term);
     }
     return text;
   }
 
   insertLinks(text: string, term: string, link: string) {
     term = this.sanitise(term);
-    // https://regex101.com/r/9eA7Sl/4
+    // https://regex101.com/r/9eA7Sl/5
     // 1st capture group captures $term within wikilinks, to filter them out
     // 2nd capture group captures $term, except for within headers and tags, and including with an -ed, -es, or -s suffix to allow for plurals etc.
     const re  = `(?<=\\[\\[.*)${term}(?![^\\]\\]]*\\[\\[)(?=.*\\]\\])|((?<!\\#|^\\|.*|^\\#.*)\\b${term}[es]?s?[ed]?\\b)`;
@@ -302,6 +316,6 @@ s
   }
 
   sanitise(input: string) {
-    return input.replace("+", "\\+")
+    return input.replace("+", "\\+").replace(".", "\\.");
   }
 }
