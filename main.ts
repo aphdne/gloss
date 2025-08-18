@@ -5,10 +5,11 @@ import { MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
  * TODO: work with file aliases
  * TODO: support definition "aliases"
  * TODO: deal with definition name conflicts
- * TODO: support undo/redo better
+ * TODO: support undo/redo better (?)
  * TODO: command to remove all glossary links
  * TODO: add feature to specify specific words to be replaced (fixed by aliases)
  *  - i.e. "class" -> "[[Class Types|class]]"
+ * TODO: use wikilinks optional
  * BUG: error on unload (?)
  */
 
@@ -286,6 +287,15 @@ s
   insertNoteLinks(text: string) {
     for (const mdf of this.app.vault.getMarkdownFiles().reverse()) {
       text = this.insertLinks(text, mdf.basename, mdf.name);
+      const fm = this.app.metadataCache.getFileCache(mdf).frontmatter;
+      if (fm) {
+        if (fm.aliases) {
+          console.log(fm.aliases);
+          for (const a of fm.aliases) {
+            text = this.insertLinks(text, a, mdf.name);
+          }
+        }
+      }
     }
     return text;
   }
